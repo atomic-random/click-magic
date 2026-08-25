@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Магический Кликер</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c1810 0%, #4a0e4e 50%, #1a0a2e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(138, 43, 226, 0.2) 0%, transparent 50%),
+                        radial-gradient(circle at 50% 80%, rgba(0, 255, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            background: linear-gradient(135deg, #2d1b3d 0%, #1a0f2e 100%);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7),
+                        0 0 40px rgba(138, 43, 226, 0.3);
+            border: 2px solid #8b5cf6;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #c4b5fd;
+            font-style: italic;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: rgba(139, 92, 246, 0.15);
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 100px;
+            border: 1px solid #8b5cf6;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(139, 92, 246, 0.25);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #a78bfa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .click-area {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .click-button {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 3px solid #ffd700;
+            background: radial-gradient(circle, #8b5cf6 0%, #4a0e4e 100%);
+            color: #ffd700;
+            font-size: 48px;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.6),
+                        inset 0 0 20px rgba(255, 215, 0, 0.2);
+            transition: all 0.1s ease;
+            position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 30px rgba(139, 92, 246, 0.6),
+                            inset 0 0 20px rgba(255, 215, 0, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 50px rgba(139, 92, 246, 0.9),
+                            inset 0 0 30px rgba(255, 215, 0, 0.4);
+            }
+        }
+
+        .click-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 60px rgba(139, 92, 246, 1),
+                        inset 0 0 40px rgba(255, 215, 0, 0.5);
+        }
+
+        .click-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+        }
+
+        .floating-number {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            font-weight: bold;
+            font-size: 24px;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(1.5);
+            }
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #8b5cf6;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .upgrade-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .upgrade-card {
+            background: rgba(139, 92, 246, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid #6b21a8;
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            pointer-events: auto;
+        }
+
+        .upgrade-card:hover:not(.owned):not(.locked) {
+            background: rgba(139, 92, 246, 0.25);
+            transform: translateY(-2px);
+            border-color: #ffd700;
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        .upgrade-card.owned {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.15);
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .upgrade-card.owned:hover {
+            transform: none;
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        .upgrade-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .upgrade-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #ffd700;
+        }
+
+        .upgrade-cost {
+            color: #f87171;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .upgrade-effect {
+            font-size: 12px;
+            color: #c4b5fd;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .save-button, .reset-button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: 1px solid;
+        }
+
+        .save-button {
+            background: #10b981;
+            color: white;
+            border-color: #059669;
+        }
+
+        .save-button:hover {
+            background: #059669;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .reset-button {
+            background: #ef4444;
+            color: white;
+            border-color: #dc2626;
+        }
+
+        .reset-button:hover {
+            background: #dc2626;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+        }
+
+        .storage-info {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #8b5cf6;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>✨ Магический Кликер</h1>
+            <p>Собирай ману и становись великим волшебником!</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Мана</div>
+                <div class="stat-value" id="money">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Сила клика</div>
+                <div class="stat-value" id="clickPower">1</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Мана/сек</div>
+                <div class="stat-value" id="passiveIncome">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Всего маны</div>
+                <div class="stat-value" id="totalEarned">0</div>
+            </div>
+        </div>
+
+        <div class="click-area">
+            <button class="click-button" id="clickButton">🔮</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📜 Магические ранги</div>
+            <div class="upgrade-list" id="professionsList"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">⚡ Артефакты</div>
+            <div class="upgrade-list" id="perksList"></div>
+        </div>
+
+        <div class="button-container">
+            <button class="save-button" id="saveButton">💾 Сохранить</button>
+            <button class="reset-button" id="resetButton">🗑️ Сбросить прогресс</button>
+        </div>
+        
+        <div class="storage-info">
+            <p>Данные сохраняются в вашем браузере (localStorage)</p>
+        </div>
+    </div>
+
+    <div class="save-indicator" id="saveIndicator">✨ Сохранено!</div>
+
+    <script>
+        class Game {
+            constructor() {
+                this.SAVE_KEY = 'magicClickerSave_v2';
+                this.mana = 0;
+                this.totalMana = 0;
+                this.clickPower = 1;
+                this.passiveIncome = 0;
+                this.ranks = [];
+                this.artifacts = [];
+                this.lastRenderState = '';
+                
+                this.initializeUpgrades();
+                this.loadGame();
+                this.setupEventListeners();
+                this.createUpgradeCards(); 
+                this.startGameLoop();
+                this.updateStatsDisplay();
+                
+                console.log('✨ Магическая игра загружена. Ключ сохранения:', this.SAVE_KEY);
+            }
+
+            initializeUpgrades() {
+                this.rankDefinitions = [
+                    { id: 'apprentice', name: 'Ученик', cost: 100, income: 5, description: '+5 маны/сек', icon: '📖' },
+                    { id: 'adept', name: 'Адепт', cost: 500, income: 20, description: '+20 маны/сек', icon: '🔮' },
+                    { id: 'mage', name: 'Маг', cost: 2000, income: 80, description: '+80 маны/сек', icon: '✨' },
+                    { id: 'warlock', name: 'Чародей', cost: 8000, income: 300, description: '+300 маны/сек', icon: '🌟' },
+                    { id: 'archmage', name: 'Архимаг', cost: 30000, income: 1000, description: '+1000 маны/сек', icon: '👑' },
+                    { id: 'demigod', name: 'Полубог', cost: 100000, income: 5000, description: '+5000 маны/сек', icon: '⚡' }
+                ];
+
+                this.artifactDefinitions = [
+                    { id: 'wand', name: 'Волшебная палочка', cost: 50, multiplier: 2, description: 'x2 к силе клика', icon: '🪄' },
+                    { id: 'crystal', name: 'Кристалл силы', cost: 300, multiplier: 3, description: 'x3 к силе клика', icon: '💎' },
+                    { id: 'grimoire', name: 'Гримуар', cost: 1000, multiplier: 5, description: 'x5 к силе клика', icon: '📕' },
+                    { id: 'phoenix', name: 'Перо феникса', cost: 5000, multiplier: 10, description: 'x10 к силе клика', icon: '🪶' },
+                    { id: 'dragon', name: 'Сердце дракона', cost: 20000, multiplier: 50, description: 'x50 к силе клика', icon: '🐉' }
+                ];
+
+                this.ranks = this.rankDefinitions.map(r => ({ ...r, purchased: false }));
+                this.artifacts = this.artifactDefinitions.map(a => ({ ...a, purchased: false }));
+            }
+
+            setupEventListeners() {
+                const clickButton = document.getElementById('clickButton');
+                
+                clickButton.addEventListener('click', (e) => {
+                    this.mana += this.clickPower;
+                    this.totalMana += this.clickPower;
+                    this.showFloatingNumber(e);
+                    this.updateStatsDisplay();
+                    this.updateUpgradeCards();
+                    this.saveGame();
+                });
+
+                document.getElementById('saveButton').addEventListener('click', () => {
+                    this.saveGame();
+                    this.showSaveIndicator();
+                });
+
+                document.getElementById('resetButton').addEventListener('click', () => {
+                    if (confirm('Вы уверены? Весь магический прогресс будет удалён!')) {
+                        this.resetGame();
+                    }
+                });
+
+                window.addEventListener('beforeunload', () => {
+                    this.saveGame();
+                });
+                
+                setInterval(() => {
+                    this.saveGame();
+                }, 30000);
+            }
+
+            createUpgradeCards() {
+                const ranksContainer = document.getElementById('professionsList');
+                const artifactsContainer = document.getElementById('perksList');                
+                
+                ranksContainer.innerHTML = '';
+                artifactsContainer.innerHTML = '';                
+                
+                this.ranks.forEach((rank, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'upgrade-card';
+                    card.id = `rank-${rank.id}`;
+                    card.innerHTML = `
+                        <div class="upgrade-name">${rank.icon} ${rank.name}</div>
+                        <div class="upgrade-cost" id="rank-cost-${rank.id}"></div>
+                        <div class="upgrade-effect">${rank.description}</div>
+                    `;
+                    
+                    card.addEventListener('click', () => this.buyRank(index));
+                    ranksContainer.appendChild(card);
+                });                
+               
+                this.artifacts.forEach((artifact, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'upgrade-card';
+                    card.id = `artifact-${artifact.id}`;
+                    card.innerHTML = `
+                        <div class="upgrade-name">${artifact.icon} ${artifact.name}</div>
+                        <div class="upgrade-cost" id="artifact-cost-${artifact.id}"></div>
+                        <div class="upgrade-effect">${artifact.description}</div>
+                    `;
+                    
+                    card.addEventListener('click', () => this.buyArtifact(index));
+                    artifactsContainer.appendChild(card);
+                });
+            }
+
+            updateStatsDisplay() {
+                document.getElementById('money').textContent = Math.floor(this.mana).toLocaleString();
+                document.getElementById('clickPower').textContent = this.clickPower.toLocaleString();
+                document.getElementById('passiveIncome').textContent = this.passiveIncome.toLocaleString();
+                document.getElementById('totalEarned').textContent = Math.floor(this.totalMana).toLocaleString();
+            }
+
+            updateUpgradeCards() {                
+                this.ranks.forEach((rank) => {
+                    const card = document.getElementById(`rank-${rank.id}`);
+                    const costElement = document.getElementById(`rank-cost-${rank.id}`);
+                    
+                    if (card && costElement) {
+                        
+                        costElement.textContent = rank.purchased ? '✓ Изучен' : `${rank.cost.toLocaleString()} маны`;                        
+                       
+                        card.classList.remove('owned', 'locked');
+                        
+                        if (rank.purchased) {
+                            card.classList.add('owned');
+                        } else if (this.mana < rank.cost) {
+                            card.classList.add('locked');
+                        }
+                    }
+                });                
+
+                this.artifacts.forEach((artifact) => {
+                    const card = document.getElementById(`artifact-${artifact.id}`);
+                    const costElement = document.getElementById(`artifact-cost-${artifact.id}`);
+                    
+                    if (card && costElement) {
+                        
+                        costElement.textContent = artifact.purchased ? '✓ Получен' : `${artifact.cost.toLocaleString()} маны`;                        
+                      
+                        card.classList.remove('owned', 'locked');
+                        
+                        if (artifact.purchased) {
+                            card.classList.add('owned');
+                        } else if (this.mana < artifact.cost) {
+                            card.classList.add('locked');
+                        }
+                    }
+                });
+            }
+
+            showFloatingNumber(event) {
+                const clickArea = document.querySelector('.click-area');
+                const floatingNum = document.createElement('div');
+                floatingNum.className = 'floating-number';
+                floatingNum.textContent = `+${this.clickPower} ✨`;
+                
+                const buttonRect = event.target.getBoundingClientRect();
+                const containerRect = clickArea.getBoundingClientRect();
+                
+                floatingNum.style.left = (buttonRect.left - containerRect.left + buttonRect.width / 2 - 20) + 'px';
+                floatingNum.style.top = (buttonRect.top - containerRect.top - 10) + 'px';
+                
+                clickArea.appendChild(floatingNum);
+                
+                setTimeout(() => {
+                    floatingNum.remove();
+                }, 1000);
+            }
+
+            startGameLoop() {
+                setInterval(() => {
+                    if (this.passiveIncome > 0) {
+                        this.mana += this.passiveIncome / 10;
+                        this.totalMana += this.passiveIncome / 10;
+                        this.updateStatsDisplay();
+                        this.updateUpgradeCards();
+                    }
+                }, 100);
+            }
+
+            buyRank(index) {
+                const rank = this.ranks[index];
+                if (this.mana >= rank.cost && !rank.purchased) {
+                    this.mana -= rank.cost;
+                    rank.purchased = true;
+                    this.passiveIncome += rank.income;
+                    this.updateStatsDisplay();
+                    this.updateUpgradeCards();
+                    this.saveGame();
+                    this.showSaveIndicator();
+                }
+            }
+
+            buyArtifact(index) {
+                const artifact = this.artifacts[index];
+                if (this.mana >= artifact.cost && !artifact.purchased) {
+                    this.mana -= artifact.cost;
+                    artifact.purchased = true;
+                    this.clickPower *= artifact.multiplier;
+                    this.updateStatsDisplay();
+                    this.updateUpgradeCards();
+                    this.saveGame();
+                    this.showSaveIndicator();
+                }
+            }
+
+            saveGame() {
+                const saveData = {
+                    mana: this.mana,
+                    totalMana: this.totalMana,
+                    clickPower: this.clickPower,
+                    passiveIncome: this.passiveIncome,
+                    ranks: this.ranks.map(r => ({ id: r.id, purchased: r.purchased })),
+                    artifacts: this.artifacts.map(a => ({ id: a.id, purchased: a.purchased })),
+                    timestamp: Date.now()
+                };
+                
+                try {
+                    localStorage.setItem(this.SAVE_KEY, JSON.stringify(saveData));
+                } catch (e) {
+                    console.error('Ошибка сохранения:', e);
+                }
+            }
+
+            loadGame() {
+                try {
+                    const saveData = localStorage.getItem(this.SAVE_KEY);
+                    if (saveData) {
+                        const data = JSON.parse(saveData);
+                        this.mana = data.mana || 0;
+                        this.totalMana = data.totalMana || 0;
+                        this.clickPower = data.clickPower || 1;
+                        this.passiveIncome = data.passiveIncome || 0;
+                        
+                        if (data.ranks) {
+                            data.ranks.forEach(savedRank => {
+                                const rank = this.ranks.find(r => r.id === savedRank.id);
+                                if (rank) {
+                                    rank.purchased = savedRank.purchased;
+                                }
+                            });
+                        }
+                        
+                        if (data.artifacts) {
+                            data.artifacts.forEach(savedArtifact => {
+                                const artifact = this.artifacts.find(a => a.id === savedArtifact.id);
+                                if (artifact) {
+                                    artifact.purchased = savedArtifact.purchased;
+                                }
+                            });
+                        }
+                        
+                        console.log('✨ Сохранение загружено. Данные с:', new Date(data.timestamp).toLocaleString());
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки сохранения:', e);
+                }
+            }
+
+            resetGame() {
+                localStorage.removeItem(this.SAVE_KEY);
+                
+                this.mana = 0;
+                this.totalMana = 0;
+                this.clickPower = 1;
+                this.passiveIncome = 0;
+                
+                this.ranks = this.rankDefinitions.map(r => ({ ...r, purchased: false }));
+                this.artifacts = this.artifactDefinitions.map(a => ({ ...a, purchased: false }));
+                
+                this.updateStatsDisplay();
+                this.updateUpgradeCards();
+                
+                console.log('✨ Игра сброшена');
+                alert('Магический прогресс успешно сброшен!');
+            }
+
+            showSaveIndicator() {
+                const indicator = document.getElementById('saveIndicator');
+                indicator.classList.add('show');
+                setTimeout(() => {
+                    indicator.classList.remove('show');
+                }, 1000);
+            }
+        }
+
+        const game = new Game();
+    </script>
+</body>
+</html>
