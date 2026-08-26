@@ -96,7 +96,7 @@ class Game {
         this.mana -= artifact.cost;
 
         artifact.purchased = true;
-        this.baseClickPower = Math.floor(this.baseClickPower * (1 + (artifact.multiplier - 1) * 0.5));
+        this.baseClickPower = Math.max(1, Math.round(this.baseClickPower * artifact.multiplier));
 
         this.monsterSystem.saveFragments();
         this.updateClickPower();
