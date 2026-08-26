@@ -50,7 +50,6 @@ class SaveManager {
 
             const parsedData = JSON.parse(data);
 
-            // Проверяем целостность данных
             if (!this.verifyData(parsedData)) {
                 console.warn('Corrupted save detected');
                 return null;

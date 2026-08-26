@@ -1,6 +1,7 @@
 class UI {
     constructor(game) {
         this.game = game;
+        this.notificationContainer = null;
         this.initializeUI();
     }
 
@@ -18,8 +19,9 @@ class UI {
                 const lang = btn.dataset.lang;
                 if (I18N.setLanguage(lang)) {
                     this.updateLanguage();
-                    this.createUpgradeCards(); // Пересоздаем карточки с новым языком
+                    this.createUpgradeCards();
                     this.update();
+                    this.game.updateFragmentsDisplay();
                 }
             });
         });
@@ -28,20 +30,18 @@ class UI {
     updateLanguage() {
         document.getElementById('gameTitle').textContent = I18N.t('gameTitle');
         document.getElementById('gameSubtitle').textContent = I18N.t('gameSubtitle');
-
         document.getElementById('manaLabel').textContent = I18N.t('mana');
         document.getElementById('clickPowerLabel').textContent = I18N.t('clickPower');
         document.getElementById('passiveIncomeLabel').textContent = I18N.t('passiveIncome');
         document.getElementById('totalEarnedLabel').textContent = I18N.t('totalEarned');
-
         document.getElementById('saveButton').textContent = I18N.t('save');
         document.getElementById('exportButton').textContent = I18N.t('export');
         document.getElementById('importButton').textContent = I18N.t('import');
         document.getElementById('resetButton').textContent = I18N.t('reset');
-
+        document.getElementById('monsterButton').textContent = I18N.t('fightMonster');
         document.getElementById('ranksTitle').textContent = I18N.t('ranksTitle');
         document.getElementById('artifactsTitle').textContent = I18N.t('artifactsTitle');
-
+        document.getElementById('fragmentsTitle').textContent = I18N.t('fragmentsTitle');
         document.getElementById('storageInfo').textContent = I18N.t('storageInfo');
 
         document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -61,7 +61,22 @@ class UI {
         container.innerHTML = '';
 
         this.game.ranks.forEach((rank, index) => {
-            const card = this.createCard(rank, 'rank', index);
+            const card = document.createElement('div');
+            card.className = 'upgrade-card';
+            card.id = `rank-${rank.id}`;
+
+            const rankName = I18N.t(rank.nameKey);
+
+            card.innerHTML = `
+                <div class="upgrade-name">${rank.icon} ${rankName}</div>
+                <div class="upgrade-cost" id="rank-cost-${rank.id}"></div>
+                <div class="upgrade-effect">${rank.descriptionKey} ${I18N.t('manaPerSec')}</div>
+            `;
+
+            card.addEventListener('click', () => {
+                this.game.buyRank(index);
+            });
+
             container.appendChild(card);
         });
     }
@@ -71,42 +86,25 @@ class UI {
         container.innerHTML = '';
 
         this.game.artifacts.forEach((artifact, index) => {
-            const card = this.createCard(artifact, 'artifact', index);
+            const card = document.createElement('div');
+            card.className = 'upgrade-card';
+            card.id = `artifact-${artifact.id}`;
+
+            const artifactName = I18N.t(artifact.nameKey);
+
+            card.innerHTML = `
+                <div class="upgrade-name">${artifact.icon} ${artifactName}</div>
+                <div class="upgrade-cost" id="artifact-cost-${artifact.id}"></div>
+                <div class="upgrade-effect">${artifact.descriptionKey} ${I18N.t('clickPowerBoost')}</div>
+                <div class="fragments-requirements" id="artifact-fragments-${artifact.id}"></div>
+            `;
+
+            card.addEventListener('click', () => {
+                this.game.buyArtifact(index);
+            });
+
             container.appendChild(card);
         });
-    }
-
-    createCard(item, type, index) {
-        const card = document.createElement('div');
-        card.className = 'upgrade-card';
-        card.id = `${type}-${item.id}`;
-
-        const itemName = I18N.t(item.nameKey);
-        const description = this.getDescription(item, type);
-
-        card.innerHTML = `
-            <div class="upgrade-name">${item.icon} ${itemName}</div>
-            <div class="upgrade-cost" id="${type}-cost-${item.id}"></div>
-            <div class="upgrade-effect">${description}</div>
-        `;
-
-        card.addEventListener('click', () => {
-            if (type === 'rank') {
-                this.game.buyRank(index);
-            } else {
-                this.game.buyArtifact(index);
-            }
-        });
-
-        return card;
-    }
-
-    getDescription(item, type) {
-        if (type === 'rank') {
-            return `${item.descriptionKey} ${I18N.t('manaCost')}/${I18N.t('passiveIncome').split(' ')[1] || 'сек'}`;
-        } else {
-            return `${item.descriptionKey} ${I18N.t('clickPower').split(' ')[1] || 'к силе клика'}`;
-        }
     }
 
     setupEventListeners() {
@@ -114,11 +112,13 @@ class UI {
             this.game.handleClick(e);
         });
 
+        document.getElementById('monsterButton').addEventListener('click', () => {
+            this.game.startMonsterFight();
+        });
+
         document.getElementById('saveButton').addEventListener('click', () => {
             if (this.game.saveGame()) {
                 this.showNotification(I18N.t('gameSaved'), 'success');
-            } else {
-                this.showNotification(I18N.t('saveError'), 'error');
             }
         });
 
@@ -141,9 +141,9 @@ class UI {
                 SaveManager.import(file, (success, message, data) => {
                     if (success) {
                         this.game.importState(data);
-                        this.showNotification(message, 'success');
+                        this.showNotification(I18N.t('gameImported'), 'success');
                     } else {
-                        this.showNotification(message, 'error');
+                        this.showNotification(I18N.t('importError'), 'error');
                     }
                 });
 
@@ -169,14 +169,10 @@ class UI {
     }
 
     updateStats() {
-        document.getElementById('money').textContent =
-            Math.floor(this.game.mana).toLocaleString();
-        document.getElementById('clickPower').textContent =
-            this.game.clickPower.toLocaleString();
-        document.getElementById('passiveIncome').textContent =
-            this.game.passiveIncome.toLocaleString();
-        document.getElementById('totalEarned').textContent =
-            Math.floor(this.game.totalMana).toLocaleString();
+        document.getElementById('money').textContent = Math.floor(this.game.mana).toLocaleString();
+        document.getElementById('clickPower').textContent = this.game.clickPower.toLocaleString();
+        document.getElementById('passiveIncome').textContent = this.game.passiveIncome.toLocaleString();
+        document.getElementById('totalEarned').textContent = Math.floor(this.game.totalMana).toLocaleString();
     }
 
     updateCards() {
@@ -186,39 +182,80 @@ class UI {
 
     updateRankCards() {
         this.game.ranks.forEach(rank => {
-            this.updateCard(rank, 'rank');
+            const card = document.getElementById(`rank-${rank.id}`);
+            const costElement = document.getElementById(`rank-cost-${rank.id}`);
+
+            if (card && costElement) {
+                costElement.textContent = rank.purchased
+                    ? I18N.t('learned')
+                    : `${rank.cost.toLocaleString()} ${I18N.t('manaCost')}`;
+
+                card.className = 'upgrade-card';
+
+                if (rank.purchased) {
+                    card.classList.add('owned');
+                } else if (this.game.mana < rank.cost) {
+                    card.classList.add('locked');
+                }
+            }
         });
     }
 
     updateArtifactCards() {
         this.game.artifacts.forEach(artifact => {
-            this.updateCard(artifact, 'artifact');
-        });
-    }
+            const card = document.getElementById(`artifact-${artifact.id}`);
+            const costElement = document.getElementById(`artifact-cost-${artifact.id}`);
+            const fragmentsElement = document.getElementById(`artifact-fragments-${artifact.id}`);
 
-    updateCard(item, type) {
-        const card = document.getElementById(`${type}-${item.id}`);
-        const costElement = document.getElementById(`${type}-cost-${item.id}`);
-
-        if (card && costElement) {
-            if (type === 'rank') {
-                costElement.textContent = item.purchased
-                    ? I18N.t('learned')
-                    : `${item.cost.toLocaleString()} ${I18N.t('manaCost')}`;
-            } else {
-                costElement.textContent = item.purchased
+            if (card && costElement) {
+                costElement.textContent = artifact.purchased
                     ? I18N.t('received')
-                    : `${item.cost.toLocaleString()} ${I18N.t('manaCost')}`;
-            }
+                    : `${artifact.cost.toLocaleString()} ${I18N.t('manaCost')}`;
 
-            card.className = 'upgrade-card';
+                if (fragmentsElement && artifact.requiredFragments) {
+                    let fragmentsHTML = '<div class="fragments-info">';
 
-            if (item.purchased) {
-                card.classList.add('owned');
-            } else if (this.game.mana < item.cost) {
-                card.classList.add('locked');
+                    for (const [fragmentId, requiredCount] of Object.entries(artifact.requiredFragments)) {
+                        const fragmentData = FRAGMENTS_DATA[fragmentId];
+                        const currentCount = this.game.monsterSystem.fragments[fragmentId] || 0;
+                        const hasEnough = currentCount >= requiredCount;
+
+                        fragmentsHTML += `
+                            <div class="fragment-requirement ${hasEnough ? 'has-enough' : 'not-enough'}">
+                                ${fragmentData.icon} ${I18N.t(fragmentData.nameKey)}: 
+                                <span class="${hasEnough ? 'text-success' : 'text-error'}">${currentCount}/${requiredCount}</span>
+                            </div>
+                        `;
+                    }
+
+                    fragmentsHTML += '</div>';
+                    fragmentsElement.innerHTML = fragmentsHTML;
+                }
+
+                card.className = 'upgrade-card';
+
+                if (artifact.purchased) {
+                    card.classList.add('owned');
+                } else {
+                    let hasAllFragments = true;
+                    if (artifact.requiredFragments) {
+                        for (const [fragmentId, count] of Object.entries(artifact.requiredFragments)) {
+                            if (!this.game.monsterSystem.fragments[fragmentId] ||
+                                this.game.monsterSystem.fragments[fragmentId] < count) {
+                                hasAllFragments = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    const hasEnoughMana = this.game.mana >= artifact.cost;
+
+                    if (!hasAllFragments || !hasEnoughMana) {
+                        card.classList.add('locked');
+                    }
+                }
             }
-        }
+        });
     }
 
     showFloatingNumber(event, amount) {
@@ -230,19 +267,21 @@ class UI {
         const buttonRect = event.target.getBoundingClientRect();
         const containerRect = clickArea.getBoundingClientRect();
 
-        floatingNum.style.left =
-            (buttonRect.left - containerRect.left + buttonRect.width / 2 - 20) + 'px';
-        floatingNum.style.top =
-            (buttonRect.top - containerRect.top - 10) + 'px';
+        floatingNum.style.left = (buttonRect.left - containerRect.left + buttonRect.width / 2 - 20) + 'px';
+        floatingNum.style.top = (buttonRect.top - containerRect.top - 10) + 'px';
 
         clickArea.appendChild(floatingNum);
 
-        setTimeout(() => {
-            floatingNum.remove();
-        }, 1000);
+        setTimeout(() => floatingNum.remove(), 1000);
     }
 
     showNotification(message, type = 'success') {
+        if (!this.notificationContainer) {
+            this.notificationContainer = document.createElement('div');
+            this.notificationContainer.className = 'notification-container';
+            document.body.appendChild(this.notificationContainer);
+        }
+
         const notification = document.createElement('div');
         notification.className = 'notification';
 
@@ -253,15 +292,35 @@ class UI {
             info: '#3b82f6'
         };
 
-        notification.style.background = colors[type] || colors.success;
+        notification.style.cssText = `
+            background: ${colors[type] || colors.success};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease-out;
+            font-weight: bold;
+            pointer-events: auto;
+            max-width: 300px;
+            word-wrap: break-word;
+        `;
+
         notification.textContent = message;
 
-        document.body.appendChild(notification);
+        const closeBtn = document.createElement('span');
+        closeBtn.textContent = ' ✕';
+        closeBtn.style.cssText = 'cursor: pointer; margin-left: 10px; opacity: 0.7; float: right;';
+        closeBtn.addEventListener('click', () => notification.remove());
+        notification.appendChild(closeBtn);
+
+        this.notificationContainer.appendChild(notification);
 
         setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transition = 'opacity 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }, 2000);
+            if (notification.parentNode) {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 3000);
     }
 }

@@ -8,15 +8,17 @@ class Game {
         this.passiveIncome = 0;
         this.ranks = RANKS_DATA.map(r => ({...r, purchased: false}));
         this.artifacts = ARTIFACTS_DATA.map(a => ({...a, purchased: false}));
-        this.achievements = [];
         this.unlockedAchievements = new Set();
 
         this.ui = new UI(this);
+        this.minigameManager = new MinigameManager();
+        this.monsterSystem = new MonsterSystem(this);
 
         this.loadGame();
         this.startGameLoop();
         this.startAutoSave();
         this.ui.update();
+        this.updateFragmentsDisplay();
     }
 
     handleClick(event) {
@@ -33,31 +35,134 @@ class Game {
         const rank = this.ranks[index];
         if (this.canBuy(rank)) {
             this.mana -= rank.cost;
-            rank.purchased = true;
-            this.passiveIncome += rank.income;
-
             this.ui.update();
-            this.checkAchievements();
             this.saveGame();
 
-            const rankName = I18N.t(rank.nameKey);
-            this.ui.showNotification(`${rank.icon} ${rankName} ${I18N.t('rankLearned')}`, 'success');
+            this.minigameManager.startExam((success) => {
+                if (success) {
+                    rank.purchased = true;
+                    this.passiveIncome += rank.income;
+                    this.ui.update();
+                    this.checkAchievements();
+                    this.saveGame();
+
+                    const rankName = I18N.t(rank.nameKey);
+                    this.ui.showNotification(`✅ ${rank.icon} ${rankName} ${I18N.t('rankLearned')}`, 'success');
+                } else {
+                    this.ui.showNotification('❌ Экзамен провален! Мана потеряна.', 'error');
+                }
+            });
         }
     }
 
     buyArtifact(index) {
         const artifact = this.artifacts[index];
-        if (this.canBuy(artifact)) {
-            this.mana -= artifact.cost;
-            artifact.purchased = true;
-            this.clickPower *= artifact.multiplier;
+        const requirements = artifact.requiredFragments;
 
-            this.ui.update();
-            this.checkAchievements();
+        if (!requirements || artifact.purchased) return;
+
+        let hasAllFragments = true;
+        let missingFragments = [];
+
+        for (const [fragmentId, count] of Object.entries(requirements)) {
+            if (!this.monsterSystem.fragments[fragmentId] ||
+                this.monsterSystem.fragments[fragmentId] < count) {
+                hasAllFragments = false;
+                const fragmentData = FRAGMENTS_DATA[fragmentId];
+                const currentCount = this.monsterSystem.fragments[fragmentId] || 0;
+                missingFragments.push(`${fragmentData.icon} ${I18N.t(fragmentData.nameKey)}: ${currentCount}/${count}`);
+            }
+        }
+
+        if (!hasAllFragments) {
+            this.ui.showNotification(`❌ ${I18N.t('notEnoughFragments')}: ${missingFragments.join(', ')}`, 'error');
+            return;
+        }
+
+        if (this.mana < artifact.cost) {
+            this.ui.showNotification(`❌ ${I18N.t('notEnoughMana')}: ${artifact.cost} ${I18N.t('manaCost')}`, 'error');
+            return;
+        }
+
+        for (const [fragmentId, count] of Object.entries(requirements)) {
+            this.monsterSystem.fragments[fragmentId] -= count;
+        }
+        this.mana -= artifact.cost;
+
+        artifact.purchased = true;
+        this.clickPower *= artifact.multiplier;
+
+        this.monsterSystem.saveFragments();
+        this.ui.update();
+        this.updateFragmentsDisplay();
+        this.checkAchievements();
+        this.saveGame();
+
+        const artifactName = I18N.t(artifact.nameKey);
+        this.ui.showNotification(`${artifact.icon} ${artifactName} ${I18N.t('artifactReceived')}`, 'success');
+    }
+
+    startMonsterFight() {
+        const monster = this.monsterSystem.getRandomMonster();
+        const fightCost = this.monsterSystem.getFightCost(monster);
+
+        if (this.mana < fightCost) {
+            this.ui.showNotification(`❌ ${I18N.t('notEnoughMana')}! ${I18N.t('fightCost')}: ${fightCost} ${I18N.t('manaCost')}`, 'error');
+            return;
+        }
+
+        this.ui.showNotification(`⚔️ ${monster.icon} ${I18N.t(monster.nameKey)}! ${I18N.t('fightCost')}: ${fightCost} ${I18N.t('manaCost')}`, 'info');
+
+        this.monsterSystem.fightMonster(monster, (success, rewards) => {
+            if (success && rewards) {
+                let rewardText = `⚔️ ${I18N.t('victory')}! ${I18N.t('received')}: ${rewards.mana} ${I18N.t('manaCost')}`;
+                if (rewards.fragments.length > 0) {
+                    rewards.fragments.forEach(f => {
+                        rewardText += `, ${FRAGMENTS_DATA[f].icon} ${I18N.t(FRAGMENTS_DATA[f].nameKey)}`;
+                    });
+                } else {
+                    rewardText += ` (${I18N.t('noFragment')})`;
+                }
+                this.ui.showNotification(rewardText, 'success');
+                this.updateFragmentsDisplay();
+                this.ui.update();
+            }
             this.saveGame();
+        });
+    }
 
-            const artifactName = I18N.t(artifact.nameKey);
-            this.ui.showNotification(`${artifact.icon} ${artifactName} ${I18N.t('artifactReceived')}`, 'success');
+    updateFragmentsDisplay() {
+        const fragmentsSection = document.getElementById('fragmentsSection');
+        const fragmentsList = document.getElementById('fragmentsList');
+
+        if (!fragmentsSection || !fragmentsList) return;
+
+        const hasFragments = Object.values(this.monsterSystem.fragments).some(count => count > 0);
+        fragmentsSection.style.display = hasFragments ? 'block' : 'none';
+
+        if (hasFragments) {
+            fragmentsList.innerHTML = '';
+
+            Object.entries(this.monsterSystem.fragments).forEach(([fragmentId, count]) => {
+                if (count > 0 && FRAGMENTS_DATA[fragmentId]) {
+                    const fragmentData = FRAGMENTS_DATA[fragmentId];
+                    const sellPrice = this.monsterSystem.getFragmentSellPrice(fragmentId);
+
+                    const fragmentElement = document.createElement('div');
+                    fragmentElement.className = 'fragment-item';
+                    fragmentElement.innerHTML = `
+                        <div class="fragment-info">${fragmentData.icon} ${I18N.t(fragmentData.nameKey)}: ${count}</div>
+                        <button class="sell-fragment-btn" data-fragment-id="${fragmentId}">💰 ${sellPrice}</button>
+                    `;
+
+                    const sellBtn = fragmentElement.querySelector('.sell-fragment-btn');
+                    sellBtn.addEventListener('click', () => {
+                        this.monsterSystem.sellFragment(fragmentId);
+                    });
+
+                    fragmentsList.appendChild(fragmentElement);
+                }
+            });
         }
     }
 
@@ -94,18 +199,11 @@ class Game {
     unlockAchievement(achievement) {
         this.unlockedAchievements.add(achievement.id);
 
-        if (achievement.reward.mana) {
-            this.mana += achievement.reward.mana;
-        }
-        if (achievement.reward.clickPower) {
-            this.clickPower += achievement.reward.clickPower;
-        }
+        if (achievement.reward.mana) this.mana += achievement.reward.mana;
+        if (achievement.reward.clickPower) this.clickPower += achievement.reward.clickPower;
 
         const achievementName = I18N.t(achievement.nameKey);
-        this.ui.showNotification(
-            `${achievement.icon} ${I18N.t('achievementUnlocked')}: ${achievementName}!`,
-            'warning'
-        );
+        this.ui.showNotification(`${achievement.icon} ${I18N.t('achievementUnlocked')}: ${achievementName}!`, 'warning');
         this.ui.update();
         this.saveGame();
     }
@@ -118,15 +216,14 @@ class Game {
             passiveIncome: this.passiveIncome,
             ranks: this.ranks.map(r => ({id: r.id, purchased: r.purchased})),
             artifacts: this.artifacts.map(a => ({id: a.id, purchased: a.purchased})),
-            achievements: Array.from(this.unlockedAchievements)
+            achievements: Array.from(this.unlockedAchievements),
+            fragments: this.monsterSystem.fragments
         });
     }
 
     loadGame() {
         const data = SaveManager.load();
-        if (data) {
-            this.importState(data);
-        }
+        if (data) this.importState(data);
     }
 
     importState(data) {
@@ -140,32 +237,32 @@ class Game {
         if (data.ranks) {
             data.ranks.forEach(saved => {
                 const rank = this.ranks.find(r => r.id === saved.id);
-                if (rank) {
-                    rank.purchased = Boolean(saved.purchased);
-                }
+                if (rank) rank.purchased = Boolean(saved.purchased);
             });
         }
 
         if (data.artifacts) {
             data.artifacts.forEach(saved => {
                 const artifact = this.artifacts.find(a => a.id === saved.id);
-                if (artifact) {
-                    artifact.purchased = Boolean(saved.purchased);
-                }
+                if (artifact) artifact.purchased = Boolean(saved.purchased);
             });
         }
 
         if (data.achievements) {
             this.unlockedAchievements = new Set(
-                data.achievements.filter(id =>
-                    ACHIEVEMENTS_DATA.some(a => a.id === id)
-                )
+                data.achievements.filter(id => ACHIEVEMENTS_DATA.some(a => a.id === id))
             );
         } else {
             this.unlockedAchievements = new Set();
         }
 
+        if (data.fragments) {
+            this.monsterSystem.fragments = data.fragments;
+            this.monsterSystem.saveFragments();
+        }
+
         this.ui.update();
+        this.updateFragmentsDisplay();
     }
 
     validateNumber(value, min, max, defaultValue) {
@@ -184,11 +281,14 @@ class Game {
         this.ranks = RANKS_DATA.map(r => ({...r, purchased: false}));
         this.artifacts = ARTIFACTS_DATA.map(a => ({...a, purchased: false}));
         this.unlockedAchievements.clear();
+        this.monsterSystem.fragments = {};
+        this.monsterSystem.saveFragments();
 
         this.ui.update();
+        this.updateFragmentsDisplay();
     }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    new Game();
+    window.game = new Game();
 });
