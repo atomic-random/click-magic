@@ -4,6 +4,7 @@ class Game {
 
         this.mana = 0;
         this.totalMana = 0;
+        this.baseClickPower = 1;
         this.clickPower = 1;
         this.passiveIncome = 0;
         this.ranks = RANKS_DATA.map(r => ({...r, purchased: false}));
@@ -13,19 +14,23 @@ class Game {
         this.ui = new UI(this);
         this.minigameManager = new MinigameManager();
         this.monsterSystem = new MonsterSystem(this);
+        this.prestigeSystem = new PrestigeSystem(this);
 
         this.loadGame();
         this.startGameLoop();
         this.startAutoSave();
+        this.updateClickPower();
         this.ui.update();
         this.updateFragmentsDisplay();
+        this.updatePrestigeUI();
     }
 
     handleClick(event) {
-        this.mana += this.clickPower;
-        this.totalMana += this.clickPower;
+        const gainedMana = this.clickPower;
+        this.mana += gainedMana;
+        this.totalMana += gainedMana;
 
-        this.ui.showFloatingNumber(event, this.clickPower);
+        this.ui.showFloatingNumber(event, gainedMana);
         this.ui.update();
         this.checkAchievements();
         this.saveGame();
@@ -43,6 +48,7 @@ class Game {
                     rank.purchased = true;
                     this.passiveIncome += rank.income;
                     this.ui.update();
+                    this.updatePrestigeUI();
                     this.checkAchievements();
                     this.saveGame();
 
@@ -90,11 +96,13 @@ class Game {
         this.mana -= artifact.cost;
 
         artifact.purchased = true;
-        this.clickPower *= artifact.multiplier;
+        this.baseClickPower = Math.floor(this.baseClickPower * (1 + (artifact.multiplier - 1) * 0.5));
 
         this.monsterSystem.saveFragments();
+        this.updateClickPower();
         this.ui.update();
         this.updateFragmentsDisplay();
+        this.updatePrestigeUI();
         this.checkAchievements();
         this.saveGame();
 
@@ -110,8 +118,6 @@ class Game {
             this.ui.showNotification(`❌ ${I18N.t('notEnoughMana')}! ${I18N.t('fightCost')}: ${fightCost} ${I18N.t('manaCost')}`, 'error');
             return;
         }
-
-        this.ui.showNotification(`⚔️ ${monster.icon} ${I18N.t(monster.nameKey)}! ${I18N.t('fightCost')}: ${fightCost} ${I18N.t('manaCost')}`, 'info');
 
         this.monsterSystem.fightMonster(monster, (success, rewards) => {
             if (success && rewards) {
@@ -129,6 +135,82 @@ class Game {
             }
             this.saveGame();
         });
+    }
+
+    tryPrestige() {
+        if (this.prestigeSystem.canPrestige()) {
+            this.prestigeSystem.startRitual((success) => {
+                this.prestigeSystem.performPrestige(success);
+            });
+        } else {
+            const missing = this.prestigeSystem.getMissingRequirements();
+            this.ui.showNotification(
+                `❌ ${I18N.t('prestigeRequirements')}: ${missing.join(', ')}`,
+                'error'
+            );
+        }
+    }
+
+    updatePrestigeUI() {
+        const prestigeBtn = document.getElementById('prestigeButton');
+        const prestigeInfo = document.getElementById('prestigeInfo');
+
+        if (!prestigeBtn) return;
+
+        const cost = this.prestigeSystem.getRitualCost();
+        const hasAllRanks = this.ranks.every(r => r.purchased);
+        const hasAllArtifacts = this.artifacts.every(a => a.purchased);
+        const hasEnoughMana = this.mana >= cost;
+        const canPrestige = hasAllRanks && hasAllArtifacts && hasEnoughMana;
+
+        prestigeBtn.textContent = `🔮 ${I18N.t('prestige')} (${Math.floor(cost).toLocaleString()} ${I18N.t('manaCost')})`;
+        prestigeBtn.disabled = false;
+
+        if (canPrestige) {
+            prestigeBtn.classList.add('prestige-ready');
+        } else {
+            prestigeBtn.classList.remove('prestige-ready');
+        }
+
+        if (prestigeInfo) {
+            const requirements = [];
+
+            if (hasAllRanks) {
+                requirements.push(`✅ ${I18N.t('needAllRanks')}`);
+            } else {
+                const ranksLeft = this.ranks.filter(r => !r.purchased).length;
+                requirements.push(`❌ ${I18N.t('needAllRanks')} (${ranksLeft} ${I18N.t('remaining')})`);
+            }
+
+            if (hasAllArtifacts) {
+                requirements.push(`✅ ${I18N.t('needAllArtifacts')}`);
+            } else {
+                const artifactsLeft = this.artifacts.filter(a => !a.purchased).length;
+                requirements.push(`❌ ${I18N.t('needAllArtifacts')} (${artifactsLeft} ${I18N.t('remaining')})`);
+            }
+
+            if (hasEnoughMana) {
+                requirements.push(`✅ ${I18N.t('needMana')}: ${Math.floor(cost).toLocaleString()} ${I18N.t('manaCost')}`);
+            } else {
+                const manaNeeded = Math.floor(cost - this.mana);
+                requirements.push(`❌ ${I18N.t('needMana')}: ${manaNeeded.toLocaleString()} ${I18N.t('manaCost')} (${Math.floor(this.mana).toLocaleString()}/${Math.floor(cost).toLocaleString()})`);
+            }
+
+            if (this.prestigeSystem.prestigeCount > 0) {
+                requirements.push(`📊 ${I18N.t('prestigeCount')}: ${this.prestigeSystem.prestigeCount} | ${I18N.t('prestigePoints')}: ${this.prestigeSystem.prestigePoints} | ${I18N.t('prestigeBonus')}: +${this.prestigeSystem.prestigePoints * 10}%`);
+            }
+
+            prestigeInfo.innerHTML = `
+                <div class="prestige-requirements">
+                    ${requirements.map(r => `<div class="requirement-item">${r}</div>`).join('')}
+                </div>
+            `;
+        }
+    }
+
+    updateClickPower() {
+        const prestigeBonus = 1 + (this.prestigeSystem.prestigePoints * 0.05);
+        this.clickPower = Math.max(1, Math.floor(this.baseClickPower * prestigeBonus));
     }
 
     updateFragmentsDisplay() {
@@ -177,6 +259,9 @@ class Game {
                 this.totalMana += this.passiveIncome / 10;
                 this.ui.update();
                 this.checkAchievements();
+                if (Math.floor(this.mana) % 100 === 0) {
+                    this.updatePrestigeUI();
+                }
             }
         }, CONFIG.TICK_INTERVAL);
     }
@@ -199,8 +284,10 @@ class Game {
     unlockAchievement(achievement) {
         this.unlockedAchievements.add(achievement.id);
 
-        if (achievement.reward.mana) this.mana += achievement.reward.mana;
-        if (achievement.reward.clickPower) this.clickPower += achievement.reward.clickPower;
+        if (achievement.reward.mana) {
+            this.mana += achievement.reward.mana;
+            this.totalMana += achievement.reward.mana;
+        }
 
         const achievementName = I18N.t(achievement.nameKey);
         this.ui.showNotification(`${achievement.icon} ${I18N.t('achievementUnlocked')}: ${achievementName}!`, 'warning');
@@ -212,18 +299,22 @@ class Game {
         return SaveManager.save({
             mana: this.mana,
             totalMana: this.totalMana,
+            baseClickPower: this.baseClickPower,
             clickPower: this.clickPower,
             passiveIncome: this.passiveIncome,
             ranks: this.ranks.map(r => ({id: r.id, purchased: r.purchased})),
             artifacts: this.artifacts.map(a => ({id: a.id, purchased: a.purchased})),
             achievements: Array.from(this.unlockedAchievements),
-            fragments: this.monsterSystem.fragments
+            fragments: this.monsterSystem.fragments,
+            prestige: this.prestigeSystem.saveData()
         });
     }
 
     loadGame() {
         const data = SaveManager.load();
-        if (data) this.importState(data);
+        if (data) {
+            this.importState(data);
+        }
     }
 
     importState(data) {
@@ -231,8 +322,14 @@ class Game {
 
         this.mana = this.validateNumber(data.mana, 0, Number.MAX_SAFE_INTEGER, 0);
         this.totalMana = this.validateNumber(data.totalMana, 0, Number.MAX_SAFE_INTEGER, 0);
-        this.clickPower = this.validateNumber(data.clickPower, 1, 1000000, 1);
         this.passiveIncome = this.validateNumber(data.passiveIncome, 0, 1000000, 0);
+        this.baseClickPower = this.validateNumber(data.baseClickPower, 1, 1000000, 1);
+
+        if (data.prestige) {
+            this.prestigeSystem.loadData(data.prestige);
+        }
+
+        this.updateClickPower();
 
         if (data.ranks) {
             data.ranks.forEach(saved => {
@@ -263,6 +360,7 @@ class Game {
 
         this.ui.update();
         this.updateFragmentsDisplay();
+        this.updatePrestigeUI();
     }
 
     validateNumber(value, min, max, defaultValue) {
@@ -276,6 +374,7 @@ class Game {
 
         this.mana = 0;
         this.totalMana = 0;
+        this.baseClickPower = 1;
         this.clickPower = 1;
         this.passiveIncome = 0;
         this.ranks = RANKS_DATA.map(r => ({...r, purchased: false}));
@@ -283,9 +382,12 @@ class Game {
         this.unlockedAchievements.clear();
         this.monsterSystem.fragments = {};
         this.monsterSystem.saveFragments();
+        this.prestigeSystem.prestigePoints = 0;
+        this.prestigeSystem.prestigeCount = 0;
 
         this.ui.update();
         this.updateFragmentsDisplay();
+        this.updatePrestigeUI();
     }
 }
 

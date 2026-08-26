@@ -1,9 +1,11 @@
 const CONFIG = {
-    SAVE_KEY: 'magicClickerSave_v10',
-    VERSION: '2.0.0',
+    SAVE_KEY: 'magicClickerSave_v12',
+    VERSION: '3.0.0',
     TICK_INTERVAL: 100,
     AUTO_SAVE_INTERVAL: 30000,
     LANGUAGES: ['ru', 'en'],
+    PRESTIGE_MANA_COST: 50000,
+    PRESTIGE_COST_MULTIPLIER: 2,
 };
 
 const RANKS_DATA = [
@@ -16,11 +18,11 @@ const RANKS_DATA = [
 ];
 
 const ARTIFACTS_DATA = [
-    { id: 'wand', nameKey: 'artifact_wand', cost: 50, multiplier: 2, descriptionKey: 'x2', icon: '🪄', requiredFragments: { wood: 2, crystal: 1 } },
-    { id: 'crystal', nameKey: 'artifact_crystal', cost: 300, multiplier: 3, descriptionKey: 'x3', icon: '💎', requiredFragments: { crystal: 3, stone: 2 } },
-    { id: 'grimoire', nameKey: 'artifact_grimoire', cost: 1000, multiplier: 5, descriptionKey: 'x5', icon: '📕', requiredFragments: { ancient_rune: 2, feather: 3 } },
-    { id: 'phoenix', nameKey: 'artifact_phoenix', cost: 5000, multiplier: 10, descriptionKey: 'x10', icon: '🪶', requiredFragments: { phoenix_feather: 3, gold: 2 } },
-    { id: 'dragon', nameKey: 'artifact_dragon', cost: 20000, multiplier: 50, descriptionKey: 'x50', icon: '🐉', requiredFragments: { dragon_heart: 3, scale: 5, ruby: 2 } }
+    { id: 'wand', nameKey: 'artifact_wand', cost: 50, multiplier: 1.5, descriptionKey: 'x1.5', icon: '🪄', requiredFragments: { wood: 2, crystal: 1 } },
+    { id: 'crystal', nameKey: 'artifact_crystal', cost: 300, multiplier: 2, descriptionKey: 'x2', icon: '💎', requiredFragments: { crystal: 3, stone: 2 } },
+    { id: 'grimoire', nameKey: 'artifact_grimoire', cost: 1000, multiplier: 3, descriptionKey: 'x3', icon: '📕', requiredFragments: { ancient_rune: 2, feather: 3 } },
+    { id: 'phoenix', nameKey: 'artifact_phoenix', cost: 5000, multiplier: 5, descriptionKey: 'x5', icon: '🪶', requiredFragments: { phoenix_feather: 3, gold: 2 } },
+    { id: 'dragon', nameKey: 'artifact_dragon', cost: 20000, multiplier: 10, descriptionKey: 'x10', icon: '🐉', requiredFragments: { dragon_heart: 3, scale: 5, ruby: 2 } }
 ];
 
 const FRAGMENTS_DATA = {

@@ -27,6 +27,19 @@ class UI {
         });
     }
 
+    closeModal() {
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) modal.remove();
+    }
+
+    showModal(content) {
+        this.closeModal();
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `<div class="modal-content">${content}</div>`;
+        document.body.appendChild(modal);
+    }
+
     updateLanguage() {
         document.getElementById('gameTitle').textContent = I18N.t('gameTitle');
         document.getElementById('gameSubtitle').textContent = I18N.t('gameSubtitle');
@@ -43,6 +56,7 @@ class UI {
         document.getElementById('artifactsTitle').textContent = I18N.t('artifactsTitle');
         document.getElementById('fragmentsTitle').textContent = I18N.t('fragmentsTitle');
         document.getElementById('storageInfo').textContent = I18N.t('storageInfo');
+        document.getElementById('prestigeTitle').textContent = I18N.t('prestigeTitle');
 
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.lang === I18N.getCurrentLanguage());
@@ -120,6 +134,10 @@ class UI {
             if (this.game.saveGame()) {
                 this.showNotification(I18N.t('gameSaved'), 'success');
             }
+        });
+
+        document.getElementById('prestigeButton').addEventListener('click', () => {
+            this.game.tryPrestige();
         });
 
         document.getElementById('exportButton').addEventListener('click', () => {

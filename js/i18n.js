@@ -83,7 +83,6 @@ const I18N = {
             monster_dark_mage: 'Темный маг',
             monster_dragon: 'Дракон',
 
-            // Мини-игры
             exam: 'Экзамен',
             examWarning: 'Внимание! При провале мана не возвращается!',
             startExam: 'Начать экзамен',
@@ -112,6 +111,28 @@ const I18N = {
             reward: 'Награда',
             fragmentChance: 'Шанс фрагмента',
             tooSlow: 'Слишком медленно!',
+
+            prestigeTitle: '🔮 Перерождение',
+            prestige: 'Переродиться',
+            prestigeCount: 'Перерождений',
+            prestigePoints: 'Очков перерождения',
+            prestigeBonus: 'Бонус к клику',
+            prestigeRequirements: 'Требования для перерождения',
+            needAllRanks: 'Изучить все ранги',
+            needMana: 'Нужно маны',
+            remaining: 'осталось',
+            ritualTitle: 'Ритуал Перерождения',
+            ritualDescription: 'Введите древнюю фразу для завершения ритуала',
+            ritualWarning: 'Все артефакты и фрагменты будут уничтожены!',
+            startRitual: 'Начать ритуал',
+            enterRitualPhrase: 'Введите фразу ритуала',
+            timeRemaining: 'Осталось времени',
+            seconds: 'секунд',
+            submit: 'Подтвердить',
+            ritualFailed: 'Ритуал провален! Попробуйте снова.',
+            prestigeComplete: 'Перерождение завершено',
+            allRanks: 'Изучить все ранги',
+            needAllArtifacts: 'Получить все артефакты',
         },
 
         en: {
@@ -195,7 +216,6 @@ const I18N = {
             monster_dark_mage: 'Dark Mage',
             monster_dragon: 'Dragon',
 
-            // Minigames
             exam: 'Exam',
             examWarning: 'Warning! Mana will not be refunded if you fail!',
             startExam: 'Start Exam',
@@ -224,6 +244,28 @@ const I18N = {
             reward: 'Reward',
             fragmentChance: 'Fragment chance',
             tooSlow: 'Too slow!',
+
+            prestigeTitle: '🔮 Prestige',
+            prestige: 'Prestige',
+            prestigeCount: 'Prestiges',
+            prestigePoints: 'Prestige points',
+            prestigeBonus: 'Click bonus',
+            prestigeRequirements: 'Prestige requirements',
+            needAllRanks: 'Learn all ranks',
+            needMana: 'Need mana',
+            remaining: 'remaining',
+            ritualTitle: 'Prestige Ritual',
+            ritualDescription: 'Enter the ancient phrase to complete the ritual',
+            ritualWarning: 'All artifacts and fragments will be destroyed!',
+            startRitual: 'Start ritual',
+            enterRitualPhrase: 'Enter ritual phrase',
+            timeRemaining: 'Time remaining',
+            seconds: 'seconds',
+            submit: 'Submit',
+            ritualFailed: 'Ritual failed! Try again.',
+            prestigeComplete: 'Prestige complete',
+            allRanks: 'Learn all ranks',
+            needAllArtifacts: 'Get all artifacts',
         }
     },
 

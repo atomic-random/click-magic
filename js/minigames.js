@@ -1,6 +1,5 @@
 class MinigameManager {
     constructor() {
-        this.activeGame = null;
         this.modalElement = null;
     }
 
@@ -265,7 +264,6 @@ class MinigameManager {
 class MonsterSystem {
     constructor(game) {
         this.game = game;
-        this.currentMonster = null;
         this.fragments = this.loadFragments();
         this.isFightInProgress = false;
     }
