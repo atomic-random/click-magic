@@ -37,8 +37,24 @@
         </div>
     </div>
 
+    <div class="player-stats-section">
+        <div class="hp-defense-row">
+            <div class="hp-info">
+                <span class="hp-label">❤️ HP: <span id="playerHP">100/100</span></span>
+                <span class="defense-label">🛡️ <span id="playerDefense">0</span></span>
+            </div>
+            <button class="heal-btn" id="healButton">💚 Лечиться</button>
+        </div>
+        <div class="hp-bar-container">
+            <div class="hp-bar" id="playerHPBar" style="width: 100%;"></div>
+        </div>
+    </div>
+
     <div class="click-area">
         <button class="click-button" id="clickButton">🔮</button>
+        <div class="location-selector">
+            <select id="locationSelect"></select>
+        </div>
         <button class="monster-btn" id="monsterButton">⚔️ Сразиться с монстром</button>
     </div>
 
@@ -60,14 +76,14 @@
     <div class="section" id="prestigeSection">
         <div class="section-title" id="prestigeTitle">🔮 Перерождение</div>
         <div class="prestige-info" id="prestigeInfo"></div>
-        <button class="prestige-btn" id="prestigeButton">🔮 Переродиться</button>
+        <button class="prestige-btn" id="prestigeButton" type="button">🔮 Переродиться</button>
     </div>
 
     <div class="button-container">
-        <button class="save-button" id="saveButton">💾 Сохранить</button>
-        <button class="export-button" id="exportButton">📤 Экспорт</button>
-        <button class="import-button" id="importButton">📥 Импорт</button>
-        <button class="reset-button" id="resetButton">🗑️ Сбросить</button>
+        <button class="save-button" id="saveButton" type="button">💾 Сохранить</button>
+        <button class="export-button" id="exportButton" type="button">📤 Экспорт</button>
+        <button class="import-button" id="importButton" type="button">📥 Импорт</button>
+        <button class="reset-button" id="resetButton" type="button">🗑️ Сбросить</button>
         <input type="file" id="importFile" accept=".json" style="display: none;">
     </div>
 

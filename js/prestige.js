@@ -25,7 +25,9 @@ class PrestigeSystem {
         const hasAllRanks = this.game.ranks.every(r => r.purchased);
         const hasAllArtifacts = this.game.artifacts.every(a => a.purchased);
         const hasEnoughMana = this.game.mana >= this.getRitualCost();
-        return hasAllRanks && hasAllArtifacts && hasEnoughMana;
+        const hasRebirthKey = this.game.monsterSystem.fragments['rebirth_key'] > 0;
+
+        return hasAllRanks && hasAllArtifacts && hasEnoughMana && hasRebirthKey;
     }
 
     getMissingRequirements() {
@@ -48,6 +50,11 @@ class PrestigeSystem {
         if (!hasEnoughMana) {
             const manaNeeded = Math.floor(cost - this.game.mana);
             missing.push(`${I18N.t('needMana')}: ${manaNeeded.toLocaleString()} ${I18N.t('manaCost')}`);
+        }
+
+        const hasRebirthKey = this.game.monsterSystem.fragments['rebirth_key'] > 0;
+        if (!hasRebirthKey) {
+            missing.push(`🔑 ${I18N.t('needRebirthKey')}`);
         }
 
         return missing;
@@ -158,6 +165,16 @@ class PrestigeSystem {
         this.game.passiveIncome = 0;
         this.game.totalMana = 0;
         this.game.mana = 0;
+
+        this.game.monsterSystem.fragments['rebirth_key']--;
+        if (this.game.monsterSystem.fragments['rebirth_key'] <= 0) {
+            delete this.game.monsterSystem.fragments['rebirth_key'];
+        }
+        this.game.monsterSystem.saveFragments();
+
+        this.game.updatePlayerStats();
+        this.game.currentHP = this.game.maxHP;
+        this.game.updateHPDisplay();
 
         this.game.ui.update();
         this.game.updateFragmentsDisplay();

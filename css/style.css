@@ -138,6 +138,10 @@ body::before {
     margin-bottom: 30px;
     position: relative;
     padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
 }
 
 .click-button {
@@ -184,7 +188,7 @@ body::before {
 
 .monster-btn {
     display: block;
-    margin: 20px auto 0;
+    margin: 10px auto 0;
     padding: 15px 30px;
     background: linear-gradient(145deg, #ef4444, #dc2626);
     color: white;
@@ -391,7 +395,6 @@ body::before {
 .import-button { background: #8b5cf6; color: white; border-color: #7c3aed; }
 .import-button:hover { background: #7c3aed; box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); }
 
-/* ============ МОДАЛЬНЫЕ ОКНА ============ */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -755,6 +758,117 @@ body::before {
 
 .requirement-item:has(❌) {
     color: #f87171;
+}
+
+.player-stats-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 10px;
+    border: 1px solid #6b21a8;
+}
+
+.hp-defense-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.hp-info {
+    display: flex;
+    gap: 15px;
+}
+
+.hp-label {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+.defense-label {
+    color: #3b82f6;
+    font-weight: bold;
+}
+
+.hp-bar-container {
+    width: 100%;
+    height: 20px;
+    background: #1a0f2e;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.hp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+    transition: width 0.3s ease;
+}
+
+.heal-btn {
+    padding: 8px 15px;
+    background: #10b981;
+    color: white;
+    border: 1px solid #059669;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.heal-btn:hover {
+    background: #059669;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.location-selector {
+    margin: 10px 0;
+    width: 100%;
+    max-width: 300px;
+}
+
+#locationSelect {
+    width: 100%;
+    padding: 12px;
+    background: #1a0f2e;
+    color: #ffd700;
+    border: 2px solid #8b5cf6;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 10px;
+}
+
+#locationSelect:hover {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+}
+
+#locationSelect option {
+    background: #1a0f2e;
+    color: #ffd700;
+    padding: 10px;
+}
+
+#locationSelect option:checked {
+    background: #8b5cf6;
+    color: white;
+}
+
+.flee-btn {
+    background: #6b7280;
+    color: white;
+    border: 1px solid #4b5563;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.flee-btn:hover:not(:disabled) {
+    background: #4b5563;
 }
 
 ::-webkit-scrollbar { width: 10px; }

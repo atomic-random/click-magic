@@ -22,6 +22,8 @@ class UI {
                     this.createUpgradeCards();
                     this.update();
                     this.game.updateFragmentsDisplay();
+                    this.game.updateLocationUI();
+                    this.game.updatePrestigeUI();
                 }
             });
         });
@@ -52,6 +54,7 @@ class UI {
         document.getElementById('importButton').textContent = I18N.t('import');
         document.getElementById('resetButton').textContent = I18N.t('reset');
         document.getElementById('monsterButton').textContent = I18N.t('fightMonster');
+        document.getElementById('healButton').textContent = I18N.t('heal');
         document.getElementById('ranksTitle').textContent = I18N.t('ranksTitle');
         document.getElementById('artifactsTitle').textContent = I18N.t('artifactsTitle');
         document.getElementById('fragmentsTitle').textContent = I18N.t('fragmentsTitle');
@@ -128,6 +131,19 @@ class UI {
 
         document.getElementById('monsterButton').addEventListener('click', () => {
             this.game.startMonsterFight();
+        });
+
+        document.getElementById('healButton').addEventListener('click', () => {
+            this.game.healPlayer();
+        });
+
+        document.getElementById('locationSelect').addEventListener('change', (e) => {
+            const selectedLocation = e.target.value;
+            const success = this.game.monsterSystem.changeLocation(selectedLocation);
+
+            if (!success) {
+                this.game.updateLocationUI();
+            }
         });
 
         document.getElementById('saveButton').addEventListener('click', () => {

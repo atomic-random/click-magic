@@ -1,3 +1,4 @@
+// ============ СИСТЕМА МИНИ-ИГР ============
 class MinigameManager {
     constructor() {
         this.modalElement = null;
@@ -59,12 +60,8 @@ class MinigameManager {
         const timerElement = document.querySelector('.timer');
         const timerInterval = setInterval(() => {
             timer--;
-            if (timerElement) {
-                timerElement.textContent = timer;
-            }
-            if (timer <= 0) {
-                clearInterval(timerInterval);
-            }
+            if (timerElement) timerElement.textContent = timer;
+            if (timer <= 0) clearInterval(timerInterval);
         }, 1000);
 
         setTimeout(() => {
@@ -261,18 +258,128 @@ class MinigameManager {
     }
 }
 
+// ============ СИСТЕМА МОНСТРОВ ============
 class MonsterSystem {
     constructor(game) {
         this.game = game;
         this.fragments = this.loadFragments();
         this.isFightInProgress = false;
+        this.currentLocation = 'forest';
+        this.lastFightCost = 0;
     }
 
-    getRandomMonster() {
-        return MONSTERS_DATA[Math.floor(Math.random() * MONSTERS_DATA.length)];
+    getLocationMonsters() {
+        const location = LOCATIONS_DATA.find(l => l.id === this.currentLocation);
+        if (!location) return [];
+        return location.monsters
+            .map(id => MONSTERS_DATA.find(m => m.id === id))
+            .filter(m => m !== undefined);
+    }
+
+    getRandomMonsterFromLocation() {
+        const monsters = this.getLocationMonsters();
+        if (monsters.length === 0) return MONSTERS_DATA[0];
+
+        const regularMonsters = monsters.filter(m => !m.isChest);
+        const chestMonsters = monsters.filter(m => m.isChest);
+
+        if (chestMonsters.length > 0 && Math.random() < 0.05) {
+            return chestMonsters[0];
+        }
+
+        const weights = regularMonsters.map(m => 100 / m.hp);
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        let random = Math.random() * totalWeight;
+
+        for (let i = 0; i < regularMonsters.length; i++) {
+            random -= weights[i];
+            if (random <= 0) return regularMonsters[i];
+        }
+
+        return regularMonsters[regularMonsters.length - 1];
+    }
+
+    changeLocation(locationId) {
+        const location = LOCATIONS_DATA.find(l => l.id === locationId);
+        if (!location) return false;
+
+        if (locationId === this.currentLocation) {
+            return true;
+        }
+
+        const isAlreadyUnlocked = this.game.unlockedLocations.has(locationId);
+
+        console.log('changeLocation:', {
+            locationId,
+            isAlreadyUnlocked,
+            unlockedLocations: Array.from(this.game.unlockedLocations),
+            mana: this.game.mana,
+            cost: location.unlockCost
+        });
+
+        if (!isAlreadyUnlocked && location.unlockCost > 0 && this.game.mana < location.unlockCost) {
+            const missing = location.unlockCost - this.game.mana;
+            this.game.ui.showNotification(
+                `❌ ${I18N.t('notEnoughMana')}! ${I18N.t('needMana')}: ${Math.floor(missing).toLocaleString()} ${I18N.t('manaCost')}`,
+                'error'
+            );
+            return false;
+        }
+
+        if (!isAlreadyUnlocked && location.unlockCost > 0) {
+            this.game.mana -= location.unlockCost;
+        }
+
+        this.currentLocation = locationId;
+
+        if (!isAlreadyUnlocked) {
+            this.game.unlockedLocations.add(locationId);
+            this.game.locationsUnlocked = this.game.unlockedLocations.size;
+
+            this.game.checkAchievements();
+
+            const locationName = I18N.t(location.nameKey);
+            this.game.ui.showNotification(
+                `🎉 ${I18N.t('newLocation')}: ${location.icon} ${locationName}!${location.unlockCost > 0 ? ` (-${location.unlockCost} ${I18N.t('manaCost')})` : ''}`,
+                'success'
+            );
+        } else {
+            const locationName = I18N.t(location.nameKey);
+            this.game.ui.showNotification(
+                `📍 ${location.icon} ${locationName}`,
+                'info'
+            );
+        }
+
+        this.game.saveGame();
+        this.game.ui.update();
+        this.game.updateLocationUI();
+
+        return true;
+    }
+
+    fleeFromBattle(callback) {
+        if (!this.isFightInProgress) return;
+
+        const refund = Math.floor(this.lastFightCost * 0.5);
+        this.game.mana += refund;
+
+        this.closeModal();
+        this.isFightInProgress = false;
+
+        this.game.ui.showNotification(
+            `🏃 ${I18N.t('fled')}! +${refund} ${I18N.t('manaCost')}`,
+            'warning'
+        );
+
+        callback(false, null);
     }
 
     getFightCost(monster) {
+        if (monster.isChest) {
+            return 0;
+        }
+
         const baseCost = monster.manaReward * 0.5;
         if (monster.dropChance > 0) {
             const fragmentValue = this.getFragmentValue(monster.dropType);
@@ -283,36 +390,53 @@ class MonsterSystem {
     }
 
     getFragmentValue(fragmentType) {
-        const values = { common: 25, uncommon: 75, rare: 200, epic: 500 };
+        const values = { common: 25, uncommon: 75, rare: 200, epic: 500, legendary: 1000 };
         return values[fragmentType] || 25;
     }
 
     getFragmentSellPrice(fragmentId) {
         const fragmentData = FRAGMENTS_DATA[fragmentId];
         if (!fragmentData) return 0;
-        const prices = { common: 10, uncommon: 25, rare: 50, epic: 100 };
+        const prices = { common: 10, uncommon: 25, rare: 50, epic: 100, legendary: 250 };
         return prices[fragmentData.rarity] || 10;
     }
 
     fightMonster(monster, callback) {
-        if (this.isFightInProgress) {
-            return;
-        }
+        if (this.isFightInProgress) return;
 
         const fightCost = this.getFightCost(monster);
+        this.lastFightCost = fightCost;
 
-        if (this.game.mana < fightCost) {
-            this.game.ui.showNotification(`❌ ${I18N.t('notEnoughMana')}! ${I18N.t('fightCost')}: ${fightCost} ${I18N.t('manaCost')}`, 'error');
+        if (this.game.currentHP <= 0) {
+            this.game.ui.showNotification('💀 ' + I18N.t('playerDied'), 'error');
             callback(false, null);
             return;
         }
 
+        if (!monster.isChest && this.game.mana < fightCost) {
+            this.game.ui.showNotification(
+                `❌ ${I18N.t('notEnoughMana')}! ${I18N.t('fightCost')}: ${fightCost} ${I18N.t('manaCost')}`,
+                'error'
+            );
+            callback(false, null);
+            return;
+        }
+
+        if (!monster.isChest) {
+            this.game.mana -= fightCost;
+        }
+
         this.isFightInProgress = true;
-        this.game.mana -= fightCost;
         this.game.ui.update();
 
         let monsterHP = monster.hp;
         let isMonsterDefeated = false;
+        let isPlayerDefeated = false;
+
+        const monsterDamage = monster.damage || 0;
+        const playerDefense = this.game.defense || 0;
+        const damageReduction = Math.floor(playerDefense * 0.7);
+        const actualMonsterDamage = monsterDamage > 0 ? Math.max(1, monsterDamage - damageReduction) : 0;
 
         this.showModal(`
             <div class="fight-modal">
@@ -320,21 +444,40 @@ class MonsterSystem {
                 <div class="monster-info">
                     <div class="monster-hp">HP: <span class="monster-hp-value">${monsterHP}</span>/${monster.hp}</div>
                     <div class="monster-stats" style="margin: 10px 0; color: #c4b5fd;">
-                        ${I18N.t('reward')}: ${monster.manaReward} ${I18N.t('manaCost')}
-                        ${monster.dropChance > 0 ? `| ${I18N.t('fragmentChance')}: ${Math.floor(monster.dropChance * 100)}%` : ''}
+                        ${monster.isChest ? '📦 Сундук с сокровищами!' : `
+                            ${I18N.t('reward')}: ${monster.manaReward} ${I18N.t('manaCost')}
+                            ${monster.dropChance > 0 ? `| ${I18N.t('fragmentChance')}: ${Math.floor(monster.dropChance * 100)}%` : ''}
+                            ${monsterDamage > 0 ? `| ${I18N.t('monsterDamage')}: ${monsterDamage} → ${actualMonsterDamage} ${I18N.t('afterDefense')}` : '| Не атакует'}
+                        `}
                     </div>
+                </div>
+                <div class="player-hp-display" style="margin: 10px 0;">
+                    ❤️ ${I18N.t('yourHP')}: <span class="player-hp-value">${this.game.currentHP}</span>/${this.game.maxHP}
+                    | 🛡️ ${I18N.t('defense')}: ${playerDefense}
                 </div>
                 <div class="fight-actions">
                     <button class="attack-btn" id="attackBtn">⚔️ ${I18N.t('attack')}</button>
+                    <button class="flee-btn" id="fleeBtn">🏃 ${I18N.t('flee')}</button>
                 </div>
             </div>
         `);
 
         const hpValue = document.querySelector('.monster-hp-value');
+        const playerHPValue = document.querySelector('.player-hp-value');
         const attackBtn = document.getElementById('attackBtn');
+        const fleeBtn = document.getElementById('fleeBtn');
 
         const attackHandler = () => {
-            if (isMonsterDefeated) {
+            if (isMonsterDefeated || isPlayerDefeated) return;
+
+            if (this.game.currentHP <= 0) {
+                isPlayerDefeated = true;
+                attackBtn.disabled = true;
+                fleeBtn.disabled = true;
+                this.closeModal();
+                this.isFightInProgress = false;
+                this.game.ui.showNotification('💀 ' + I18N.t('playerDied'), 'error');
+                callback(false, null);
                 return;
             }
 
@@ -347,8 +490,8 @@ class MonsterSystem {
             if (monsterHP <= 0) {
                 isMonsterDefeated = true;
                 attackBtn.disabled = true;
+                fleeBtn.disabled = true;
                 attackBtn.style.opacity = '0.5';
-                attackBtn.style.cursor = 'not-allowed';
 
                 setTimeout(() => {
                     this.closeModal();
@@ -356,14 +499,67 @@ class MonsterSystem {
                     this.isFightInProgress = false;
                     callback(true, rewards);
                 }, 500);
+                return;
+            }
+
+            if (actualMonsterDamage > 0) {
+                this.game.currentHP = Math.max(0, this.game.currentHP - actualMonsterDamage);
+                playerHPValue.textContent = this.game.currentHP;
+                this.game.updateHPDisplay();
+
+                this.showPlayerDamageAnimation(actualMonsterDamage);
+
+                if (this.game.currentHP <= 0) {
+                    isPlayerDefeated = true;
+                    attackBtn.disabled = true;
+                    fleeBtn.disabled = true;
+                    attackBtn.style.opacity = '0.5';
+
+                    setTimeout(() => {
+                        this.closeModal();
+                        this.isFightInProgress = false;
+                        this.game.ui.showNotification('💀 ' + I18N.t('playerDied'), 'error');
+                        callback(false, null);
+                    }, 1000);
+                }
             }
         };
 
         attackBtn.addEventListener('click', attackHandler);
+        fleeBtn.addEventListener('click', () => {
+            if (!isMonsterDefeated && !isPlayerDefeated) {
+                this.fleeFromBattle(callback);
+            }
+        });
     }
 
     calculateRewards(monster) {
         const rewards = { mana: monster.manaReward, fragments: [] };
+
+        if (monster.isBoss && monster.bossReward) {
+            rewards.fragments.push(monster.bossReward);
+            this.addFragment(monster.bossReward);
+
+            this.game.ui.showNotification(
+                `🎉 ${I18N.t('bossDefeated')}! ${I18N.t('rebirthKeyObtained')}!`,
+                'success'
+            );
+
+            return rewards;
+        }
+
+        if (monster.isChest && monster.guaranteedFragments) {
+            const allFragments = Object.keys(FRAGMENTS_DATA).filter(f => f !== 'rebirth_key');
+            const shuffled = allFragments.sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < monster.guaranteedFragments && i < shuffled.length; i++) {
+                const fragment = shuffled[i];
+                rewards.fragments.push(fragment);
+                this.addFragment(fragment);
+            }
+
+            return rewards;
+        }
 
         if (Math.random() < monster.dropChance) {
             const fragment = this.getRandomFragment(monster.dropType);
@@ -379,10 +575,12 @@ class MonsterSystem {
 
     getRandomFragment(type) {
         const fragments = {
-            common: ['wood', 'stone', 'bone'],
+            common: ['wood', 'stone', 'bone', 'herbs'],
             uncommon: ['iron', 'crystal', 'feather'],
             rare: ['gold', 'ruby', 'scale'],
-            epic: ['dragon_heart', 'phoenix_feather', 'ancient_rune']
+            epic: ['dragon_heart', 'phoenix_feather', 'ancient_rune'],
+            legendary: ['dragon_scale', 'ancient_heart'],
+            rebirth_key: ['rebirth_key']
         };
         const typeFragments = fragments[type] || fragments.common;
         return typeFragments[Math.floor(Math.random() * typeFragments.length)];
@@ -430,11 +628,34 @@ class MonsterSystem {
             damageEl.textContent = `-${damage} ⚔️`;
             damageEl.style.cssText = `
                 position: absolute;
-                top: 50%;
-                left: 50%;
+                top: 40%;
+                left: 30%;
                 transform: translate(-50%, -50%);
                 animation: floatUp 0.8s ease-out forwards;
                 color: ${color};
+                font-weight: bold;
+                font-size: 28px;
+                pointer-events: none;
+                z-index: 10;
+            `;
+            modal.appendChild(damageEl);
+            setTimeout(() => damageEl.remove(), 800);
+        }
+    }
+
+    showPlayerDamageAnimation(damage) {
+        const modal = document.querySelector('.fight-modal');
+        if (modal) {
+            const damageEl = document.createElement('div');
+            damageEl.className = 'damage-float';
+            damageEl.textContent = `-${damage} 💥`;
+            damageEl.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 70%;
+                transform: translate(-50%, -50%);
+                animation: floatUp 0.8s ease-out forwards;
+                color: #ef4444;
                 font-weight: bold;
                 font-size: 28px;
                 pointer-events: none;
